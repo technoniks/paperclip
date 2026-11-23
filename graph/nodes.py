@@ -1,8 +1,9 @@
 import json, time, uuid
-
+from langchain.agents import create_agent
 from config import json_llm
 from state import ExecutionState, AgentEvent, Task
 from agents import WORKERS
+from tools.common import safe_path
 
 def call_json(prompt: str) -> dict:
     start = time.monotonic()
@@ -92,7 +93,7 @@ def manager_node(state: ExecutionState):
             state,
             "manager",
             "plan",
-            f"Created {len(tasks)} tasks",
+            f"Created {len(tasks)} tasks: {', '.join([t['title'] + ': ' + t['agent']  for t in tasks])}",
         ),
     }
 
@@ -135,11 +136,10 @@ def worker_node(state: ExecutionState):
 
     Use your tools when required.
 
-    Return a concise resport containing:
-    1. what you did.
-    2. What files or outputs you created.
-    3. Whether task is complete.
-    4. Any remaining problems. 
+    Return the shared JSON response with the substantive result in data. For
+    research tasks, include the complete findings in data.findings, not only a
+    summary or saved-file path. List workspace-relative output paths in
+    artifacts; their text contents will also be attached for the reviewer.
     """
 
     task["status"] = "running"
@@ -152,7 +152,30 @@ def worker_node(state: ExecutionState):
         })
         end = time.monotonic()
         print(f"[DEBUG] Worker {task['agent']} call took {end - start:.2f} seconds")
-        result = response["messages"][-1].content
+        worker_result = response["structured_response"]
+        result_data = worker_result.model_dump()
+        artifact_contents = {}
+
+        for artifact in worker_result.artifacts:
+            try:
+                artifact_path = safe_path(artifact)
+                if not artifact_path.is_file():
+                    worker_result.issues.append(
+                        f"Artifact does not exist or is not a file: {artifact}"
+                    )
+                    continue
+                artifact_contents[artifact] = artifact_path.read_text(
+                    encoding="utf-8"
+                )
+            except (OSError, UnicodeError, ValueError) as exc:
+                worker_result.issues.append(
+                    f"Could not read artifact {artifact}: {exc}"
+                )
+
+        if artifact_contents:
+            result_data["data"]["artifact_contents"] = artifact_contents
+        result_data["issues"] = worker_result.issues
+        result = json.dumps(result_data, ensure_ascii=False)
     except Exception as e:
         result = f"Worker execution failed: {e}"
 
@@ -173,7 +196,6 @@ def worker_node(state: ExecutionState):
 def reviewer_node(state: ExecutionState):
 
     task: Task = state["current_task"]
-
     prompt = f"""
     You are an independent QA reviewer.
 
@@ -186,6 +208,12 @@ def reviewer_node(state: ExecutionState):
     WORKER RESULT: {task["result"]}
 
     Review the result.
+    The worker result includes its structured data and, when available, the
+    full text of every listed artifact under data.artifact_contents. Review
+    that content rather than approving based on filenames or summaries alone.
+    Do not approve if the substantive deliverable is absent from data, or if a
+    listed artifact is missing from artifact_contents and its content is not
+    otherwise included in data.
 
     Approve only if the deliverable meets the task requirements.
     If the task requires testing, distinguish actual test evidence
@@ -302,7 +330,7 @@ def finalizer_node(state: ExecutionState):
 
     return {
         "status": status,
-        "final_answer": response.content,
+        "final_answer": response.content[-1]["text"],
         "current_task": None,
     }
 

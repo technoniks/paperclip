@@ -3,18 +3,19 @@ import uuid
 
 from state import ExecutionState
 from graph.workflow import build_workflow
+from tools.common import set_goal_workspace
 
 
 def main():
-
-    graph = build_workflow()
+    # goal = input("Enter your goal: ").strip()
+    # if not goal:
+    #     raise ValueError("Goal cannot be empty")
 
     initial_state: ExecutionState = {
-        "goal": (
-            "Create a Python calculator application "
-            "with addition, subtraction, multiplication, "
-            "division and unit tests."
-        ),
+        "goal": "create simple rag implementation plan using qdrant running locally "
+        "(local dqrant installation, not docker),"
+        "ollama qwen3.5:2b(reasoning off) model which is already pulled in local, just connect with it"
+        "and nomic-embed-text:latest for embedding.",
 
         "tasks": [],
         "current_task": None,
@@ -32,6 +33,9 @@ def main():
         "final_answer": "",
     }
 
+    goal_workspace = set_goal_workspace(initial_state["goal"])
+    graph = build_workflow()
+
     config = {
         "configurable": {
             "thread_id": str(uuid.uuid4())
@@ -39,7 +43,7 @@ def main():
         "recursion_limit": 100,
     }
 
-    print("\nStarting AI organization...\n")
+    print(f"\nStarting AI organization in {goal_workspace}...\n")
 
     for event in graph.stream(
         initial_state,
