@@ -84,11 +84,18 @@ With the virtual environment active:
 python main.py
 ```
 
-**Current goal behavior:** `main.py` currently uses a hardcoded RAG-planning
-goal that mentions local Qdrant, Ollama `qwen3.5:2b`, and
-`nomic-embed-text:latest`. The interactive `input()` code is commented out, so
-typing a goal at the prompt is not currently supported. To change the run,
-edit the `goal` value in `initial_state` in `main.py`.
+When the program starts, it prompts for a goal. Enter the goal and press
+Return; the input is trimmed, and an empty goal is rejected before the
+workflow or workspace is started. Each accepted goal is passed into the
+manager and used for that run.
+
+Example goals:
+
+1. Write a recipe for tea.
+2. Write a 12-line romantic poem that follows a rhyme scheme.
+3. Create a simple RAG implementation using Qdrant running locally (installed
+   locally, not in Docker), the already-pulled Ollama `qwen3.5:2b` model with
+   reasoning off, and `nomic-embed-text:latest` for embeddings.
 
 At startup the application creates a numbered workspace directory under
 `workspace/` (for example, `workspace/001`) and prints its path. New runs use

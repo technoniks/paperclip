@@ -7,15 +7,16 @@ from tools.common import set_goal_workspace
 
 
 def main():
-    # goal = input("Enter your goal: ").strip()
-    # if not goal:
-    #     raise ValueError("Goal cannot be empty")
+    goal = input("Enter your goal: ").strip()
+    if not goal:
+        raise ValueError("Goal cannot be empty")
 
     initial_state: ExecutionState = {
-        "goal": "create simple rag implementation plan using qdrant running locally "
-        "(local dqrant installation, not docker),"
-        "ollama qwen3.5:2b(reasoning off) model which is already pulled in local, just connect with it"
-        "and nomic-embed-text:latest for embedding.",
+        "goal": goal,
+        # "create simple rag implementation plan using qdrant running locally "
+        # "(local dqrant installation, not docker),"
+        # "ollama qwen3.5:2b(reasoning off) model which is already pulled in local, just connect with it"
+        # "and nomic-embed-text:latest for embedding.",
 
         "tasks": [],
         "current_task": None,
